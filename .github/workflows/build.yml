@@ -1,0 +1,25 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:    # bouton Run workflow à la main
+  push:
+    branches: [ main ]  # compile aussi si tu pousses du code sur main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: kivy/buildozer:latest   # image Docker avec SDK/NDK + Buildozer
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build debug APK
+        run: |
+          pip install --upgrade pip
+          buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: perfume-apk
+          path: bin/*.apk
