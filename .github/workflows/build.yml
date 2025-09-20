@@ -1,25 +1,57 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:    # bouton Run workflow à la main
+  workflow_dispatch:
   push:
-    branches: [ main ]  # compile aussi si tu pousses du code sur main
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: kivy/buildozer:latest   # image Docker avec SDK/NDK + Buildozer
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build debug APK
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OS deps
         run: |
-          pip install --upgrade pip
+          sudo apt-get update
+          sudo apt-get install -y \
+            openjdk-17-jdk git zip unzip \
+            libffi-dev libssl-dev zlib1g-dev \
+            libsqlite3-dev autoconf automake libtool pkg-config \
+            libncurses5  # pour certains outillages ndk
+          java -version
+
+      - name: Install Python deps (Buildozer)
+        run: |
+          python -m pip install --upgrade pip
+          pip install "cython<3" buildozer==1.5.0
+
+      - name: Cache buildozer/gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.gradle
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
+
+      - name: Build APK (debug)
+        env:
+          BUILDOZER_WARN_ON_ROOT: "1"
+        run: |
           buildozer -v android debug
 
-      - name: Upload APK
+      - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: perfume-apk
+          name: app-debug-apk
           path: bin/*.apk
